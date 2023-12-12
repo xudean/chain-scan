@@ -4,5 +4,5 @@ if [ -z "$1" ]; then
 else
   DEFAULT_VALUE="$1" # use input
 fi
-gradle bootJar
+./gradlew bootJar
 docker build -t xudean/chain-scan:$DEFAULT_VALUE .
