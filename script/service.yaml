@@ -1,0 +1,12 @@
+# Use root/example as user/password credentials
+version: '3.1'
+
+services:
+  chain-scan:
+    image: xudean/chain-scan:latest
+    container_name: chain-scan
+    restart: always
+    ports:
+      - 8080:8080
+    environment:
+      MONGO_HOST: 172.17.0.1
