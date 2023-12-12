@@ -2,3 +2,6 @@ spring:
   data:
     mongodb:
       uri: mongodb://${MONGO_USER:pado}:${MONGO_PASSWORD:PadoMongoAdmin123}@${MONGO_HOST:127.0.0.1}:27017/chain
+
+config:
+  proxy: ${ENABLE_PROXY:false}
