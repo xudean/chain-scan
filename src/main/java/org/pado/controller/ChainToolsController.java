@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.pado.service.ChainToolsService;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -20,7 +21,7 @@ public class ChainToolsController {
     private ChainToolsService chainToolsService;
 
     @GetMapping("/block")
-    public void syncChainBlock() {
-        chainToolsService.syncChainBlock();
+    public void syncChainBlock(@RequestParam Long start) {
+        chainToolsService.syncChainBlock(start);
     }
 }

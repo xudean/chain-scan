@@ -57,12 +57,14 @@ public class ChainToolsService {
                 threadFactory);
     }
 
-    public void syncChainBlock() {
-        Long startBlock = 1092628L;
-        ChainBlock topByBlockNumber = chainBlockRepository.findTopByOrderByBlockNumberDesc();
-        if(topByBlockNumber!=null){
-            startBlock = topByBlockNumber.getBlockNumber().longValue();
+    public void syncChainBlock(Long startBlock) {
+        if(startBlock == null){
+            startBlock = 1092628L;
         }
+//        ChainBlock topByBlockNumber = chainBlockRepository.findTopByOrderByBlockNumberDesc();
+//        if(topByBlockNumber!=null){
+//            startBlock = topByBlockNumber.getBlockNumber().longValue();
+//        }
         Long endBlock = Long.MAX_VALUE;
         String method = "0x9b2846a6";
         Web3j web3j = Web3j.build(new HttpService("https://rpc.linea.build"));
