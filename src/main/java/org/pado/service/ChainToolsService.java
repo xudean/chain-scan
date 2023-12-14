@@ -66,7 +66,7 @@ public class ChainToolsService {
         int maxThreads = cpuCores * 2;
         ThreadFactory threadFactory = Executors.defaultThreadFactory();
         executorPool =
-            new ThreadPoolExecutor(20, 40, 20, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(Integer.MAX_VALUE),
+            new ThreadPoolExecutor(20, 40, 20, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(1024),
                 threadFactory);
     }
 
