@@ -12,14 +12,11 @@ import org.pado.repository.ChainBlockRepository;
 import org.pado.utils.DateUtils;
 import org.pado.utils.IdUtil;
 import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.aggregation.Aggregation;
-import org.springframework.data.mongodb.core.aggregation.GroupOperation;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.web3j.protocol.Web3j;
+import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.core.DefaultBlockParameterNumber;
 import org.web3j.protocol.core.Request;
 import org.web3j.protocol.core.methods.response.EthBlock;
@@ -66,8 +63,7 @@ public class ChainToolsService {
         int maxThreads = cpuCores * 2;
         ThreadFactory threadFactory = Executors.defaultThreadFactory();
         executorPool =
-            new ThreadPoolExecutor(20, 40, 20, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(1024),
-                threadFactory);
+            new ThreadPoolExecutor(20, 40, 20, TimeUnit.SECONDS, new LinkedBlockingDeque<>(), threadFactory);
     }
 
     public void syncChainBlock(Long startBlock) {
@@ -84,6 +80,7 @@ public class ChainToolsService {
         Long size = 0L;
         for (Long blockIndex = startBlock; blockIndex <= endBlock; blockIndex++) {
             try {
+                long startTime = System.currentTimeMillis();
                 log.info("blockNumber:{}", blockIndex);
                 //check blockNumber has sync
                 Query query = new Query(Criteria.where("blockNumber").is(blockIndex));
@@ -151,6 +148,8 @@ public class ChainToolsService {
                     mongoTemplate.save(chainTransaction);
                 }
                 mongoTemplate.save(chainBlock);
+                long endTime = System.currentTimeMillis();
+                log.info("blockNumber:{} cost:{}", blockIndex, endTime - startTime);
             } catch (Exception e) {
                 log.error("error occurred:{}", e.getMessage());
                 blockIndex--;
@@ -166,77 +165,90 @@ public class ChainToolsService {
         //        if(topByBlockNumber!=null){
         //            startBlock = topByBlockNumber.getBlockNumber().longValue();
         //        }
-        Long endBlock = Long.MAX_VALUE;
-        String method = "0x9b2846a6";
         Web3j web3j = Web3j.build(new HttpService("https://rpc.linea.build"));
-        Long size = 0L;
-        for (Long blockIndex = startBlock; blockIndex <= endBlock; blockIndex++) {
 
-            Long finalBlockIndex = blockIndex;
-            executorPool.submit(new Runnable() {
-                @SneakyThrows
-                @Override
-                public void run() {
-                    log.info("blockNumber:{}", finalBlockIndex);
-                    //check blockNumber has sync
-                    Query query = new Query(Criteria.where("blockNumber").is(finalBlockIndex));
-                    long count = mongoTemplate.count(query, ChainBlock.class);
-                    if (count > 0) {
-                        log.info("blockNumber:{} has sync!", finalBlockIndex);
-                        return;
-                    }
-                    EthBlock.Block block = null;
-                    while (block == null) {
-                        block = getBlock(web3j, finalBlockIndex);
-                    }
-                    ChainBlock chainBlock = new ChainBlock();
-                    chainBlock.setBlockHash(block.getHash());
-                    BigInteger number = block.getNumber();
-                    chainBlock.setBlockNumber(number.longValue());
-                    BigInteger timestamp = block.getTimestamp().multiply(new BigInteger("1000"));
-                    LocalDateTime localDateTime = DateUtils.convertToLocalDateTime(timestamp.longValue());
-                    chainBlock.setTimestamp(localDateTime);
-                    chainBlock.setId(IdUtil.nextId());
-                    //save chainBlock
-                    List<EthBlock.TransactionResult> transactions = block.getTransactions();
-                    for (EthBlock.TransactionResult transaction : transactions) {
-                        EthBlock.TransactionObject o = (EthBlock.TransactionObject)transaction.get();
-                        Transaction transaction1 = o.get();
-                        String toAddress = transaction1.getTo();
-                        String hash = transaction1.getHash();
-                        log.info("-----transactionHash:{}", hash);
-                        Optional<TransactionReceipt> transactionReceipt =
-                            web3j.ethGetTransactionReceipt(hash).send().getTransactionReceipt();
-                        TransactionReceipt transactionReceipt1 = transactionReceipt.get();
-                        //0x1: success,
-                        String status = transactionReceipt1.getStatus();
-                        String input = transaction1.getInput();
-                        String methodStr = StrUtil.sub(input, 0, 10);
-                        ChainTransaction chainTransaction = new ChainTransaction();
-                        chainTransaction.setId(IdUtil.nextId());
-                        chainTransaction.setBlockNumber(transaction1.getBlockNumber().longValue());
-                        chainTransaction.setTo(transaction1.getTo());
-                        chainTransaction.setFrom(transaction1.getFrom());
-                        chainTransaction.setGas(transaction1.getGas());
-                        chainTransaction.setGasPrice(transaction1.getGasPrice());
-                        chainTransaction.setHash(transaction1.getHash());
-                        chainTransaction.setInput(transaction1.getInput());
-                        chainTransaction.setNonce(transaction1.getNonce());
-                        chainTransaction.setMethod(methodStr);
-                        chainTransaction.setStatus(status);
-                        chainTransaction.setValue(transaction1.getValue());
-                        //check transaction  exists
-                        if (mongoTemplate.exists(new Query(Criteria.where("hash").is(hash)), Transaction.class)) {
-                            log.info("-----transaction :{} has sync", hash);
-                            continue;
-                        }
-                        mongoTemplate.save(chainTransaction);
-                    }
-                    mongoTemplate.save(chainBlock);
+        while (true) {
+            EthBlock.Block block = web3j.ethGetBlockByNumber(DefaultBlockParameterName.LATEST, false).send().getBlock();
+            if (startBlock > block.getNumber().longValue()) {
+                log.warn("current blockNumer is:{}, ahead of latest blockNumer:{}, wait for 1000ms",startBlock,block.getNumber().longValue());
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    log.error(e.getMessage());
                 }
-            });
-
+                continue;
+            }
+            extracted(startBlock, web3j);
+            startBlock++;
         }
+    }
+
+    private void extracted(Long finalBlockIndex, Web3j web3j) {
+        executorPool.submit(new Runnable() {
+            @SneakyThrows
+            @Override
+            public void run() {
+                long starTime = System.currentTimeMillis();
+                log.info("blockNumber:{}", finalBlockIndex);
+                //check blockNumber has sync
+                Query query = new Query(Criteria.where("blockNumber").is(finalBlockIndex));
+                long count = mongoTemplate.count(query, ChainBlock.class);
+                if (count > 0) {
+                    log.info("blockNumber:{} has sync!", finalBlockIndex);
+                    return;
+                }
+                EthBlock.Block block = null;
+                while (block == null) {
+                    block = getBlock(web3j, finalBlockIndex);
+                }
+                ChainBlock chainBlock = new ChainBlock();
+                chainBlock.setBlockHash(block.getHash());
+                BigInteger number = block.getNumber();
+                chainBlock.setBlockNumber(number.longValue());
+                BigInteger timestamp = block.getTimestamp().multiply(new BigInteger("1000"));
+                LocalDateTime localDateTime = DateUtils.convertToLocalDateTime(timestamp.longValue());
+                chainBlock.setTimestamp(localDateTime);
+                chainBlock.setId(IdUtil.nextId());
+                //save chainBlock
+                List<EthBlock.TransactionResult> transactions = block.getTransactions();
+                for (EthBlock.TransactionResult transaction : transactions) {
+                    EthBlock.TransactionObject o = (EthBlock.TransactionObject)transaction.get();
+                    Transaction transaction1 = o.get();
+                    String toAddress = transaction1.getTo();
+                    String hash = transaction1.getHash();
+                    log.info("-----transactionHash:{}", hash);
+                    Optional<TransactionReceipt> transactionReceipt =
+                        web3j.ethGetTransactionReceipt(hash).send().getTransactionReceipt();
+                    TransactionReceipt transactionReceipt1 = transactionReceipt.get();
+                    //0x1: success,
+                    String status = transactionReceipt1.getStatus();
+                    String input = transaction1.getInput();
+                    String methodStr = StrUtil.sub(input, 0, 10);
+                    ChainTransaction chainTransaction = new ChainTransaction();
+                    chainTransaction.setId(IdUtil.nextId());
+                    chainTransaction.setBlockNumber(transaction1.getBlockNumber().longValue());
+                    chainTransaction.setTo(transaction1.getTo());
+                    chainTransaction.setFrom(transaction1.getFrom());
+                    chainTransaction.setGas(transaction1.getGas());
+                    chainTransaction.setGasPrice(transaction1.getGasPrice());
+                    chainTransaction.setHash(transaction1.getHash());
+                    chainTransaction.setInput(transaction1.getInput());
+                    chainTransaction.setNonce(transaction1.getNonce());
+                    chainTransaction.setMethod(methodStr);
+                    chainTransaction.setStatus(status);
+                    chainTransaction.setValue(transaction1.getValue());
+                    //check transaction  exists
+                    if (mongoTemplate.exists(new Query(Criteria.where("hash").is(hash)), Transaction.class)) {
+                        log.info("-----transaction :{} has sync", hash);
+                        continue;
+                    }
+                    mongoTemplate.save(chainTransaction);
+                }
+                mongoTemplate.save(chainBlock);
+                long endTime = System.currentTimeMillis();
+                log.info("blockNumber:{} cost:{}", finalBlockIndex, endTime - starTime);
+            }
+        });
     }
 
     public EthBlock.Block getBlock(Web3j web3j, Long blockIndex) throws IOException {
