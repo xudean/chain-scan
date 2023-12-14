@@ -69,9 +69,15 @@ public class ChainToolsService {
         ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
 
         Runnable task = () -> {
-            ChainBlock topByBlockNumber = chainBlockRepository.findTopByOrderByBlockNumberDesc();
-            if (topByBlockNumber != null) {
-                latestBlockNumer = new AtomicLong(topByBlockNumber.getBlockNumber().longValue());
+            Web3j web3j = Web3j.build(new HttpService("https://rpc.linea.build"));
+            EthBlock.Block block = null;
+            try {
+                block = web3j.ethGetBlockByNumber(DefaultBlockParameterName.LATEST, false).send().getBlock();
+            } catch (IOException e) {
+                log.error(e.getMessage());
+            }
+            if (block != null) {
+                latestBlockNumer = new AtomicLong(block.getNumber().longValue());
                 log.info("latest blockNumber is:{}", latestBlockNumer);
             }
         };
@@ -183,7 +189,7 @@ public class ChainToolsService {
             if (startBlock > latestBlockNumer.longValue()) {
                 log.info("current blockNumber is:{} but latest blockNumber is:{}, sleep 1000ms!", startBlock, latestBlockNumer.get());
                 try {
-                    Thread.sleep(1000);
+                    Thread.sleep(2000);
                 } catch (InterruptedException e) {
                     log.error(e.getMessage());
                 }
