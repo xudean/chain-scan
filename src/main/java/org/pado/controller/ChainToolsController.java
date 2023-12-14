@@ -7,6 +7,7 @@ import org.pado.pojo.ActivityStaticVO;
 import org.pado.service.ChainToolsService;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -28,8 +29,8 @@ public class ChainToolsController {
     }
 
     @GetMapping("/block/async")
-    public void asyncChainBlock(@RequestParam Long start) {
-        chainToolsService.syncChainBlock(start);
+    public void asyncChainBlock(@RequestParam Long start) throws IOException {
+        chainToolsService.asyncChainBlock(start);
     }
 
     @GetMapping("/check")
