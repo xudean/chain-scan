@@ -73,7 +73,7 @@ public class ChainToolsService {
             try {
                 log.info("blockNumber:{}", blockIndex);
                 //check blockNumber has sync
-                Query query = new Query(Criteria.where("blockNumber").is(String.valueOf(blockIndex)));
+                Query query = new Query(Criteria.where("blockNumber").is(blockIndex));
                 long count = mongoTemplate.count(query, ChainBlock.class);
                 if (count > 0) {
                     log.info("blockNumber:{} has sync!", blockIndex);
@@ -151,7 +151,7 @@ public class ChainToolsService {
         Long first = start;
         for (Long i = start; i < 1189374L; i++) {
 
-            Query query = new Query(Criteria.where("blockNumber").is(String.valueOf(i)));
+            Query query = new Query(Criteria.where("blockNumber").is(i));
             long count = mongoTemplate.count(query, ChainBlock.class);
             if (count == 0) {
                 if(i .equals( first)){
