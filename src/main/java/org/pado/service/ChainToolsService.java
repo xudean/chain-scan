@@ -168,7 +168,7 @@ public class ChainToolsService {
         EthBlock.Block block = web3j.ethGetBlockByNumber(DefaultBlockParameterName.LATEST, false).send().getBlock();
         log.info("latestNumber is:{}",block.getNumber().longValue());
         for (Long i = startBlock; i <= block.getNumber().longValue(); i++) {
-            extracted(startBlock, web3j);
+            extracted(i, web3j);
 
         }
     }
