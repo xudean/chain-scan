@@ -24,4 +24,9 @@ public class ChainToolsController {
     public void syncChainBlock(@RequestParam Long start) {
         chainToolsService.syncChainBlock(start);
     }
+
+    @GetMapping("/check")
+    public void check() {
+        chainToolsService.check();
+    }
 }

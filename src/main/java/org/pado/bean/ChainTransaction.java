@@ -22,7 +22,7 @@ public class ChainTransaction {
     private Long id;
     private String hash;
     private BigInteger nonce;
-    private BigInteger blockNumber;
+    private Long blockNumber;
     private String from;
     private String to;
     private BigInteger gasPrice;

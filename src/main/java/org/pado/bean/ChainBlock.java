@@ -20,7 +20,7 @@ import java.time.LocalDateTime;
 public class ChainBlock {
     @Id
     private Long id;
-    private BigInteger blockNumber;
+    private Long blockNumber;
     private String blockHash;
     private LocalDateTime timestamp;
 }

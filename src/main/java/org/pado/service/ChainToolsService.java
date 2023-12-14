@@ -58,22 +58,22 @@ public class ChainToolsService {
     }
 
     public void syncChainBlock(Long startBlock) {
-        if(startBlock == null){
+        if (startBlock == null) {
             startBlock = 1092628L;
         }
-//        ChainBlock topByBlockNumber = chainBlockRepository.findTopByOrderByBlockNumberDesc();
-//        if(topByBlockNumber!=null){
-//            startBlock = topByBlockNumber.getBlockNumber().longValue();
-//        }
+        //        ChainBlock topByBlockNumber = chainBlockRepository.findTopByOrderByBlockNumberDesc();
+        //        if(topByBlockNumber!=null){
+        //            startBlock = topByBlockNumber.getBlockNumber().longValue();
+        //        }
         Long endBlock = Long.MAX_VALUE;
         String method = "0x9b2846a6";
         Web3j web3j = Web3j.build(new HttpService("https://rpc.linea.build"));
         Long size = 0L;
         for (Long blockIndex = startBlock; blockIndex <= endBlock; blockIndex++) {
             try {
-                log.info("blockNumber:{}",blockIndex);
+                log.info("blockNumber:{}", blockIndex);
                 //check blockNumber has sync
-                Query query = new Query(Criteria.where("blockNumber").is(blockIndex));
+                Query query = new Query(Criteria.where("blockNumber").is(String.valueOf(blockIndex)));
                 long count = mongoTemplate.count(query, ChainBlock.class);
                 if (count > 0) {
                     log.info("blockNumber:{} has sync!", blockIndex);
@@ -97,7 +97,7 @@ public class ChainToolsService {
                 ChainBlock chainBlock = new ChainBlock();
                 chainBlock.setBlockHash(block.getHash());
                 BigInteger number = block.getNumber();
-                chainBlock.setBlockNumber(number);
+                chainBlock.setBlockNumber(number.longValue());
                 BigInteger timestamp = block.getTimestamp().multiply(new BigInteger("1000"));
                 LocalDateTime localDateTime = DateUtils.convertToLocalDateTime(timestamp.longValue());
                 chainBlock.setTimestamp(localDateTime);
@@ -109,7 +109,7 @@ public class ChainToolsService {
                     Transaction transaction1 = o.get();
                     String toAddress = transaction1.getTo();
                     String hash = transaction1.getHash();
-                    log.info("-----transactionHash:{}",hash);
+                    log.info("-----transactionHash:{}", hash);
                     Optional<TransactionReceipt> transactionReceipt =
                         web3j.ethGetTransactionReceipt(hash).send().getTransactionReceipt();
                     TransactionReceipt transactionReceipt1 = transactionReceipt.get();
@@ -119,7 +119,7 @@ public class ChainToolsService {
                     String methodStr = StrUtil.sub(input, 0, 10);
                     ChainTransaction chainTransaction = new ChainTransaction();
                     chainTransaction.setId(IdUtil.nextId());
-                    chainTransaction.setBlockNumber(transaction1.getBlockNumber());
+                    chainTransaction.setBlockNumber(transaction1.getBlockNumber().longValue());
                     chainTransaction.setTo(transaction1.getTo());
                     chainTransaction.setFrom(transaction1.getFrom());
                     chainTransaction.setGas(transaction1.getGas());
@@ -132,7 +132,7 @@ public class ChainToolsService {
                     chainTransaction.setValue(transaction1.getValue());
                     //check transaction  exists
                     if (mongoTemplate.exists(new Query(Criteria.where("hash").is(hash)), Transaction.class)) {
-                        log.info("-----transaction :{} has sync",hash);
+                        log.info("-----transaction :{} has sync", hash);
                         continue;
                     }
                     mongoTemplate.save(chainTransaction);
@@ -142,6 +142,27 @@ public class ChainToolsService {
                 log.error("error occurred:{}", e.getMessage());
                 blockIndex--;
             }
+        }
+    }
+
+    public void check() {
+                Long start = 1092628L;
+//        Long start = 1L;
+        Long first = start;
+        for (Long i = start; i < 1189374L; i++) {
+
+            Query query = new Query(Criteria.where("blockNumber").is(String.valueOf(i)));
+            long count = mongoTemplate.count(query, ChainBlock.class);
+            if (count == 0) {
+                if(i .equals( first)){
+                    first++;
+                    continue;
+                }
+                log.info("{} ~ {}",first,i-1);
+                first = i+1;
+            }
+
+
         }
     }
 }
