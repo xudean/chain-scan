@@ -29,6 +29,7 @@ import java.math.BigInteger;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @Author xuda
@@ -45,6 +46,8 @@ public class ChainToolsService {
 
     @Resource
     private ChainBlockRepository chainBlockRepository;
+
+    private AtomicLong latestBlockNumer = new AtomicLong(1204937L);
 
     private static final Map<String, String[]> contractMap = new ConcurrentHashMap<>() {{
         put("PADO", new String[] {"0x9b2846a6", "0xc4b7dcba12866f6f8181b949ca443232c4e94334"});
@@ -63,16 +66,24 @@ public class ChainToolsService {
         int maxThreads = cpuCores * 2;
         ThreadFactory threadFactory = Executors.defaultThreadFactory();
         executorPool = new ThreadPoolExecutor(20, 40, 20, TimeUnit.SECONDS, new LinkedBlockingDeque<>(), threadFactory);
+        ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(1);
+
+        Runnable task = () -> {
+            ChainBlock topByBlockNumber = chainBlockRepository.findTopByOrderByBlockNumberDesc();
+            if (topByBlockNumber != null) {
+                latestBlockNumer = new AtomicLong(topByBlockNumber.getBlockNumber().longValue());
+                log.info("latest blockNumber is:{}", latestBlockNumer);
+            }
+        };
+        scheduledExecutorService.scheduleAtFixedRate(task, 0, 2, TimeUnit.SECONDS);
+
     }
 
     public void syncChainBlock(Long startBlock) {
         if (startBlock == null) {
             startBlock = 1092628L;
         }
-        //        ChainBlock topByBlockNumber = chainBlockRepository.findTopByOrderByBlockNumberDesc();
-        //        if(topByBlockNumber!=null){
-        //            startBlock = topByBlockNumber.getBlockNumber().longValue();
-        //        }
+
         Long endBlock = Long.MAX_VALUE;
         String method = "0x9b2846a6";
         Web3j web3j = Web3j.build(new HttpService("https://rpc.linea.build"));
@@ -166,11 +177,23 @@ public class ChainToolsService {
         //        }
         Web3j web3j = Web3j.build(new HttpService("https://rpc.linea.build"));
         EthBlock.Block block = web3j.ethGetBlockByNumber(DefaultBlockParameterName.LATEST, false).send().getBlock();
-        log.info("latestNumber is:{}",block.getNumber().longValue());
-        for (Long i = startBlock; i <= block.getNumber().longValue(); i++) {
-            extracted(i, web3j);
-
+        log.info("latestNumber is:{}", block.getNumber().longValue());
+        //        for (Long i = startBlock; i <= block.getNumber().longValue(); i++) {
+        while (true) {
+            if (startBlock > latestBlockNumer.longValue()) {
+                log.info("current blockNumber is:{} but latest blockNumber is:{}, sleep 1000ms!", startBlock, latestBlockNumer.get());
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    log.error(e.getMessage());
+                }
+                continue;
+            }
+            extracted(startBlock, web3j);
+            startBlock++;
         }
+
+        //        }
     }
 
     private void extracted(Long finalBlockIndex, Web3j web3j) {
