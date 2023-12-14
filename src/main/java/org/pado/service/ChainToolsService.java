@@ -62,8 +62,7 @@ public class ChainToolsService {
         int cpuCores = Runtime.getRuntime().availableProcessors();
         int maxThreads = cpuCores * 2;
         ThreadFactory threadFactory = Executors.defaultThreadFactory();
-        executorPool =
-            new ThreadPoolExecutor(20, 40, 20, TimeUnit.SECONDS, new LinkedBlockingDeque<>(), threadFactory);
+        executorPool = new ThreadPoolExecutor(20, 40, 20, TimeUnit.SECONDS, new LinkedBlockingDeque<>(), threadFactory);
     }
 
     public void syncChainBlock(Long startBlock) {
@@ -166,20 +165,11 @@ public class ChainToolsService {
         //            startBlock = topByBlockNumber.getBlockNumber().longValue();
         //        }
         Web3j web3j = Web3j.build(new HttpService("https://rpc.linea.build"));
-
-        while (true) {
-            EthBlock.Block block = web3j.ethGetBlockByNumber(DefaultBlockParameterName.LATEST, false).send().getBlock();
-            if (startBlock > block.getNumber().longValue()) {
-                log.warn("current blockNumer is:{}, ahead of latest blockNumer:{}, wait for 1000ms",startBlock,block.getNumber().longValue());
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    log.error(e.getMessage());
-                }
-                continue;
-            }
+        EthBlock.Block block = web3j.ethGetBlockByNumber(DefaultBlockParameterName.LATEST, false).send().getBlock();
+        log.info("latestNumber is:{}",block.getNumber().longValue());
+        for (Long i = startBlock; i <= block.getNumber().longValue(); i++) {
             extracted(startBlock, web3j);
-            startBlock++;
+
         }
     }
 
