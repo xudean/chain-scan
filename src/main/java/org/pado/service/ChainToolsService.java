@@ -321,7 +321,7 @@ public class ChainToolsService {
                 query.addCriteria(Criteria.where("blockNumber").lte(endBlock));
             }
             query.addCriteria(Criteria.where("method").is(method));
-            query.addCriteria(Criteria.where("contractAddress").is(contractAddress));
+            query.addCriteria(Criteria.where("to").is(contractAddress));
             query.addCriteria(Criteria.where("status").is("0x1"));
             Long longs = mongoTemplate.count(query, ChainTransaction.class);
             ActivityStaticVO activityStaticVO = new ActivityStaticVO();
