@@ -49,7 +49,7 @@ public class ChainToolsService {
 
     private AtomicLong latestBlockNumer = new AtomicLong(1204937L);
 
-    private static final Map<String, String[]> contractMap = new ConcurrentHashMap<>() {{
+    private static final Map<String, String[]> contractMap = new LinkedHashMap<>() {{
         put("PADO", new String[] {"0x9b2846a6", "0xc4b7dcba12866f6f8181b949ca443232c4e94334"});
         put("zkpass", new String[] {"0x4b2bc20e", "0x3b30d7c4e5aa3d7da11431af23e8d1f7d25bb0b8"});
         put("clique", new String[] {"0x07432196", "0x065e959ffd4c76ae2e0d31cfcf91c0c9834472ec"});
@@ -81,7 +81,7 @@ public class ChainToolsService {
                 log.info("latest blockNumber is:{}", latestBlockNumer);
             }
         };
-        scheduledExecutorService.scheduleAtFixedRate(task, 0, 2, TimeUnit.SECONDS);
+        scheduledExecutorService.scheduleAtFixedRate(task, 0, 120, TimeUnit.SECONDS);
 
     }
 
@@ -187,7 +187,7 @@ public class ChainToolsService {
         //        for (Long i = startBlock; i <= block.getNumber().longValue(); i++) {
         while (true) {
             if (startBlock > latestBlockNumer.longValue()) {
-                log.info("current blockNumber is:{} but latest blockNumber is:{}, sleep 1000ms!", startBlock, latestBlockNumer.get());
+                log.info("current blockNumber is:{} but latest blockNumber is:{}, sleep 2000ms!", startBlock, latestBlockNumer.get());
                 try {
                     Thread.sleep(2000);
                 } catch (InterruptedException e) {
